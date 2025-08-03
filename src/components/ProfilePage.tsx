@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import {
   Avatar,
   AvatarFallback,
@@ -12,7 +13,6 @@ import { getTyped } from "@/lib/request";
 import { useFetch } from "@/hooks/useFetch";
 import { useAuth } from "@/lib/auth";
 
-/* ---------- domain types ---------- */
 interface User {
   _id: string;
   name: string;
@@ -42,7 +42,7 @@ export const ProfilePage = ({
   onConnect,
   onMessage,
 }: ProfilePageProps) => {
-  // Defensive guard: do not proceed with invalid userId
+  // Defensive guard
   if (!userId) {
     return <div className="p-8">Invalid or missing user ID.</div>;
   }
@@ -50,19 +50,21 @@ export const ProfilePage = ({
   const { user: me } = useAuth();
   const isOwn = me?._id === userId;
 
-  /* fetch profile */
+  // 🟢 Memoize fetch functions and specify types for getTyped<T>
+  const getProfile = useCallback(() => getTyped<User>(`/users/${userId}`), [userId]);
+  const getPosts = useCallback(() => getTyped<Post[]>(`/users/${userId}/posts/`), [userId]);
+
   const {
     data: profile,
     loading: profileLoading,
     error: profileError,
-  } = useFetch<User>(() => getTyped(`/users/${userId}`));
+  } = useFetch<User>(getProfile);
 
-  /* fetch posts */
   const {
     data: posts = [],
     loading: postsLoading,
     error: postsError,
-  } = useFetch<Post[]>(() => getTyped(`/users/${userId}/posts/`));
+  } = useFetch<Post[]>(getPosts);
 
   if (profileLoading || postsLoading) return <p className="p-8">Loading…</p>;
   if (profileError || postsError) return <p className="p-8">Error loading data.</p>;
@@ -78,7 +80,7 @@ export const ProfilePage = ({
               <AvatarImage src={profile.avatar_url ?? undefined} />
               <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
                 {profile.name
-                  ? profile.name.split(" ").map(n => n[0]).join("") 
+                  ? profile.name.split(" ").map(n => n[0]).join("")
                   : "?"}
               </AvatarFallback>
             </Avatar>
@@ -114,7 +116,6 @@ export const ProfilePage = ({
                   </span>
                 </div>
               </div>
-
               {isOwn && (
                 <Button variant="outline" size="sm">
                   <Edit className="w-4 h-4 mr-2" />
@@ -125,7 +126,6 @@ export const ProfilePage = ({
 
             <p className="leading-relaxed mb-4">{profile.bio || "No bio provided."}</p>
 
-            {/* Hard-coded badges for now */}
             <div className="flex flex-wrap gap-2">
               <Badge variant="secondary">Product Management</Badge>
               <Badge variant="secondary">User Experience</Badge>
@@ -146,9 +146,7 @@ export const ProfilePage = ({
         </Card>
         <Card className="gradient-card shadow-card border-card-border">
           <div className="p-4 text-center">
-            <div className="text-2xl font-bold text-primary mb-1">
-              {posts.length}
-            </div>
+            <div className="text-2xl font-bold text-primary mb-1">{posts.length}</div>
             <div className="text-sm text-muted-foreground">Posts</div>
           </div>
         </Card>
