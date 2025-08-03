@@ -17,8 +17,8 @@ interface User {
   _id: string;
   name: string;
   email: string;
-  title: string;
-  bio: string;
+  title?: string;
+  bio?: string;
   avatar_url?: string | null;
 }
 interface Post {
@@ -28,11 +28,11 @@ interface Post {
   likes: number;
   comments: number;
   isLiked?: boolean;
-  author: { name: string; title: string; avatar_url?: string | null };
+  author?: { name?: string; title?: string; avatar_url?: string | null };
 }
 
 interface ProfilePageProps {
-  userId: string;
+  userId: string | undefined;
   onConnect?: () => void;
   onMessage?: () => void;
 }
@@ -42,6 +42,11 @@ export const ProfilePage = ({
   onConnect,
   onMessage,
 }: ProfilePageProps) => {
+  // Defensive guard: do not proceed with invalid userId
+  if (!userId) {
+    return <div className="p-8">Invalid or missing user ID.</div>;
+  }
+
   const { user: me } = useAuth();
   const isOwn = me?._id === userId;
 
@@ -60,8 +65,8 @@ export const ProfilePage = ({
   } = useFetch<Post[]>(() => getTyped(`/users/${userId}/posts/`));
 
   if (profileLoading || postsLoading) return <p className="p-8">Loading…</p>;
-  if (profileError || postsError)    return <p className="p-8">Error loading data.</p>;
-  if (!profile)                      return null;
+  if (profileError || postsError) return <p className="p-8">Error loading data.</p>;
+  if (!profile) return <p className="p-8">Profile not found.</p>;
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
@@ -72,7 +77,9 @@ export const ProfilePage = ({
             <Avatar className="w-32 h-32 mb-4">
               <AvatarImage src={profile.avatar_url ?? undefined} />
               <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
-                {profile.name.split(" ").map(n => n[0]).join("")}
+                {profile.name
+                  ? profile.name.split(" ").map(n => n[0]).join("") 
+                  : "?"}
               </AvatarFallback>
             </Avatar>
 
@@ -92,18 +99,18 @@ export const ProfilePage = ({
           <div className="flex-1 mt-4 md:mt-0">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h1 className="text-2xl font-bold mb-1">{profile.name}</h1>
+                <h1 className="text-2xl font-bold mb-1">{profile.name || "Unknown User"}</h1>
                 <p className="text-lg text-muted-foreground mb-2">
-                  {profile.title}
+                  {profile.title || "Member"}
                 </p>
                 <div className="flex items-center space-x-4 text-sm text-muted-foreground mb-4">
                   <span className="flex items-center space-x-1">
                     <Mail className="w-4 h-4" />
-                    <span>{profile.email}</span>
+                    <span>{profile.email || "No email"}</span>
                   </span>
                   <span className="flex items-center space-x-1">
                     <MapPin className="w-4 h-4" />
-                    <span>San Francisco, CA</span>
+                    <span>San Francisco, CA</span> {/* TODO: dynamic */}
                   </span>
                 </div>
               </div>
@@ -116,8 +123,9 @@ export const ProfilePage = ({
               )}
             </div>
 
-            <p className="leading-relaxed mb-4">{profile.bio}</p>
+            <p className="leading-relaxed mb-4">{profile.bio || "No bio provided."}</p>
 
+            {/* Hard-coded badges for now */}
             <div className="flex flex-wrap gap-2">
               <Badge variant="secondary">Product Management</Badge>
               <Badge variant="secondary">User Experience</Badge>
@@ -154,7 +162,7 @@ export const ProfilePage = ({
 
       {/* posts */}
       <h2 className="text-xl font-semibold mb-4">
-        {isOwn ? "Your Posts" : `Posts by ${profile.name.split(" ")[0]}`}
+        {isOwn ? "Your Posts" : `Posts by ${profile.name?.split(" ")[0] || "User"}`}
       </h2>
 
       <div className="space-y-4">
@@ -162,7 +170,14 @@ export const ProfilePage = ({
           posts.map(p => (
             <PostCard
               key={p._id}
-              post={p}
+              post={{
+                ...p,
+                author: {
+                  name: p.author?.name || "Unknown",
+                  title: p.author?.title || "Member",
+                  avatar_url: p.author?.avatar_url ?? null,
+                },
+              }}
               onComment={() => console.log("comment", p._id)}
               onShare={() => console.log("share", p._id)}
             />

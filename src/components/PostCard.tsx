@@ -1,13 +1,13 @@
 import * as React from "react";
 import { Heart, MessageSquare, Share2 } from "lucide-react";
-
+import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface Author {
   name: string;
-  title: string;
+  title?: string;
   avatar_url?: string | null;
 }
 
@@ -35,10 +35,20 @@ export const PostCard: React.FC<PostCardProps> = ({
   const [liked, setLiked] = React.useState(post.isLiked ?? false);
   const [likeCount, setLikeCount] = React.useState(post.likes);
 
-  const toggleLike = () => {
-    setLiked(!liked);
+  const toggleLike = async () => {
+    setLiked((prev) => !prev);
     setLikeCount((prev) => prev + (liked ? -1 : 1));
-    // You can call your backend like endpoint here if needed
+    try {
+      if (liked) {
+        await api.delete(`/posts/${post._id}/like/`);
+      } else {
+        await api.post(`/posts/${post._id}/like/`);
+      }
+    } catch (err) {
+      setLiked((prev) => !prev);
+      setLikeCount((prev) => prev + (liked ? 1 : -1));
+      // Optional: show error to user here
+    }
   };
 
   return (
@@ -49,13 +59,15 @@ export const PostCard: React.FC<PostCardProps> = ({
             {post.author.avatar_url ? (
               <AvatarImage src={post.author.avatar_url} />
             ) : (
-              <AvatarFallback>{post.author.name[0]}</AvatarFallback>
+              <AvatarFallback>
+                {post.author.name?.[0] || "?"}
+              </AvatarFallback>
             )}
           </Avatar>
           <div className="text-sm leading-tight">
             <p className="font-medium">{post.author.name}</p>
             <p className="text-muted-foreground text-xs">
-              {post.created_at.slice(0, 10)} {/* ISO → YYYY-MM-DD */}
+              {post.created_at.slice(0, 10)}
             </p>
           </div>
         </div>
@@ -70,7 +82,9 @@ export const PostCard: React.FC<PostCardProps> = ({
             className="flex items-center gap-1 text-sm"
           >
             <Heart
-              className={`h-4 w-4 ${liked ? "fill-red-500 text-red-500" : ""}`}
+              className={`h-4 w-4 ${
+                liked ? "fill-red-500 text-red-500" : ""
+              }`}
             />
             {likeCount}
           </Button>

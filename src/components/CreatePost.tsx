@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 
 interface CreatePostProps {
-  currentUser: { name: string; avatar: string }; // required for your use
+  // Remove currentUser if not needed! You can get user from useAuth()
   onSuccess: () => Promise<void>;
 }
 
@@ -19,14 +19,13 @@ const CreatePost = ({ onSuccess }: CreatePostProps) => {
     setLoading(true);
 
     try {
-      await api.post("/threads/", {
-        title: text,
-        description: "", // adjust as needed
+      await api.post("/posts/", {
+        content: text, // <-- Correct key for backend
       });
       setText("");
       await onSuccess();
     } catch (err) {
-      console.error("Failed to post thread:", err);
+      console.error("Failed to post:", err);
     } finally {
       setLoading(false);
     }

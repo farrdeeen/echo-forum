@@ -10,13 +10,21 @@ const Header = () => {
       <Link to="/" className="text-lg font-bold">
         ThreadSpace
       </Link>
-
       <nav className="flex items-center gap-4">
         {user ? (
           <>
-            <span className="text-sm text-muted-foreground">
-              {user.name}
-            </span>
+            <div className="flex items-center gap-2">
+              {user.avatar_url && (
+                <img
+                  src={user.avatar_url}
+                  alt={user.name}
+                  className="w-6 h-6 rounded-full object-cover"
+                />
+              )}
+              <span className="text-sm text-muted-foreground">
+                {user.name || user.email}
+              </span>
+            </div>
             <Button onClick={logout} variant="outline" size="sm">
               Logout
             </Button>

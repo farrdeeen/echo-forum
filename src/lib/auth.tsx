@@ -1,5 +1,3 @@
-// src/lib/auth.tsx
-
 import {
   createContext,
   useCallback,
@@ -9,16 +7,16 @@ import {
 } from "react";
 import api, { setToken } from "./api";
 
-// User type from FastAPI response
+// User type (as returned by your FastAPI backend's /auth/me)
 interface User {
   _id: string;
   name: string;
   avatar_url?: string | null;
   email: string;
   title?: string;
+  bio?: string;
 }
 
-// Auth context type
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
@@ -27,26 +25,23 @@ interface AuthContextType {
   loading: boolean;
 }
 
-// Context
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// Hook
 export const useAuth = () => {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within <AuthProvider>");
   return ctx;
 };
 
-// Provider
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Load user from /auth/me
+  // Load user profile from /auth/me
   const loadUser = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get<User>("/auth/me");
+      const res = await api.get<User>("/auth/me/");
       setUser(res.data);
     } catch {
       setUser(null);
@@ -55,7 +50,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, []);
 
-  // On mount
+  // On mount, load user if token exists
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) setToken(token);
@@ -64,20 +59,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Login
   const login = async (email: string, password: string) => {
-  const res = await api.post<{ token: string }>("/auth/login", { email, password });
-  const { token } = res.data;
-  localStorage.setItem("token", token);
-  setToken(token);
-  await loadUser();
-};
+    const res = await api.post<{ access_token: string; user: User }>(
+      "/auth/login/",
+      { email, password }
+    );
+    const { access_token } = res.data;
+    localStorage.setItem("token", access_token);
+    setToken(access_token);
+    await loadUser();
+  };
 
-const register = async (name: string, email: string, password: string) => {
-  const res = await api.post<{ token: string }>("/auth/register", { name, email, password });
-  const { token } = res.data;
-  localStorage.setItem("token", token);
-  setToken(token);
-  await loadUser();
-};
+  // Register
+  const register = async (name: string, email: string, password: string) => {
+    const res = await api.post<{ access_token: string; user: User }>(
+      "/auth/register/",
+      { name, email, password }
+    );
+    const { access_token } = res.data;
+    localStorage.setItem("token", access_token);
+    setToken(access_token);
+    await loadUser();
+  };
 
   // Logout
   const logout = () => {
@@ -87,7 +89,9 @@ const register = async (name: string, email: string, password: string) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+    <AuthContext.Provider
+      value={{ user, login, register, logout, loading }}
+    >
       {children}
     </AuthContext.Provider>
   );

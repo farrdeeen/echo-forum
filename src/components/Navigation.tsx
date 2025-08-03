@@ -8,8 +8,7 @@ import {
   MessageCircle,
   LogOut,
 } from "lucide-react";
-
-import { useAuth } from "@/lib/auth";   // alias points to src/auth.tsx
+import { useAuth } from "@/lib/auth";
 
 interface NavigationProps {
   currentPage: string;
@@ -17,17 +16,17 @@ interface NavigationProps {
 }
 
 export const Navigation = ({ currentPage, onPageChange }: NavigationProps) => {
-  const { user, logout } = useAuth();      // global auth context
+  const { user, logout } = useAuth();
 
   const navItems = [
-    { id: "feed",          label: "Home",          icon: Home },
-    { id: "profile",       label: "Profile",       icon: User },
-    { id: "create",        label: "Post",          icon: PlusSquare },
+    { id: "feed", label: "Home", icon: Home },
+    { id: "profile", label: "Profile", icon: User },
+    { id: "create", label: "Post", icon: PlusSquare },
     { id: "notifications", label: "Notifications", icon: Bell },
-    { id: "messages",      label: "Messages",      icon: MessageCircle },
+    { id: "messages", label: "Messages", icon: MessageCircle },
   ];
 
-  /* ─────────────────── PUBLIC NAV (logged-out) ────────────────── */
+  // ----------- PUBLIC NAV -----------
   if (!user) {
     return (
       <nav className="border-b bg-card shadow-card">
@@ -38,7 +37,6 @@ export const Navigation = ({ currentPage, onPageChange }: NavigationProps) => {
               <div className="w-8 h-8 bg-primary rounded" />
               <span className="text-xl font-bold text-primary">ProConnect</span>
             </div>
-
             {/* auth links */}
             <div className="flex space-x-2">
               <Button
@@ -61,7 +59,7 @@ export const Navigation = ({ currentPage, onPageChange }: NavigationProps) => {
     );
   }
 
-  /* ─────────────────── PRIVATE NAV (logged-in) ─────────────────── */
+  // ----------- PRIVATE NAV -----------
   return (
     <nav className="border-b bg-card shadow-card sticky top-0 z-50">
       <div className="max-w-6xl mx-auto px-4 py-3">
@@ -72,7 +70,6 @@ export const Navigation = ({ currentPage, onPageChange }: NavigationProps) => {
               <div className="w-8 h-8 bg-primary rounded" />
               <span className="text-xl font-bold text-primary">ProConnect</span>
             </div>
-
             <div className="hidden md:flex space-x-1">
               {navItems.map(({ id, label, icon: Icon }) => (
                 <Button
@@ -91,13 +88,10 @@ export const Navigation = ({ currentPage, onPageChange }: NavigationProps) => {
               ))}
             </div>
           </div>
-
           {/* user avatar + sign-out */}
           <div className="flex items-center space-x-3">
             <Avatar className="w-8 h-8">
-              {/* 1️⃣ guard against null avatar_url */}
               <AvatarImage src={user.avatar_url ?? undefined} />
-              {/* 2️⃣ guard against blank name */}
               <AvatarFallback className="bg-primary text-primary-foreground text-sm">
                 {(user.name || "?")
                   .split(" ")

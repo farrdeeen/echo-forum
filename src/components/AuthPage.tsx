@@ -10,7 +10,6 @@ interface AuthPageProps {
 const AuthPage: React.FC<AuthPageProps> = ({ type, onAuth, onToggle }) => {
   const { login, register } = useAuth();
 
-  // You don't need isRegistering; use `type` prop!
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
@@ -26,9 +25,14 @@ const AuthPage: React.FC<AuthPageProps> = ({ type, onAuth, onToggle }) => {
       } else {
         await login(email, password);
       }
-      onAuth(); // notify parent
+      onAuth(); // notify parent of successful auth
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Something went wrong.");
+      // Axios errors: err.response?.data?.detail; Fetch: err.message
+      setError(
+        err?.response?.data?.detail ||
+        err?.message ||
+        "Something went wrong."
+      );
     }
   };
 
@@ -73,11 +77,10 @@ const AuthPage: React.FC<AuthPageProps> = ({ type, onAuth, onToggle }) => {
         </button>
       </form>
       <p className="mt-4 text-sm">
-        {type === "register" ? "Already have an account?" : "Don't have an account?"}{" "}
-        <button
-          className="text-blue-500 underline"
-          onClick={onToggle}
-        >
+        {type === "register"
+          ? "Already have an account?"
+          : "Don't have an account?"}{" "}
+        <button className="text-blue-500 underline" onClick={onToggle}>
           {type === "register" ? "Login" : "Register"}
         </button>
       </p>
