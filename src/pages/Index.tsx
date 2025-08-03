@@ -1,176 +1,168 @@
-import { useState } from "react";
-import { Navigation } from "@/components/Navigation";
-import { AuthPage } from "@/components/AuthPage";
-import { PostCard } from "@/components/PostCard";
-import { CreatePost } from "@/components/CreatePost";
-import { ProfilePage } from "@/components/ProfilePage";
-import { mockPosts, mockUsers } from "@/data/mockData";
+import { useState, useEffect, useCallback } from "react";
+import api from "@/lib/api";
 
+import { Navigation } from "@/components/Navigation";
+import AuthPage from "@/components/AuthPage";
+import { PostCard } from "@/components/PostCard";
+import CreatePost from "@/components/CreatePost";
+import { ProfilePage } from "@/components/ProfilePage";
+import { useAuth } from "@/lib/auth";
+
+/* ───────── Types ───────── */
 interface User {
+  _id: string;
   name: string;
-  title: string;
-  bio: string;
-  email: string;
-  avatar?: string;
-  posts?: string[];
+  avatar_url?: string | null;
+}
+interface Post {
+  _id: string;
+  content: string;
+  created_at: string;
+  likes: number;
+  comments: number;
+  isLiked?: boolean;
+  author: {
+    name: string;
+    title?: string;
+    avatar_url?: string | null;
+  };
 }
 
-const Index = () => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [currentPage, setCurrentPage] = useState("feed");
-  const [authType, setAuthType] = useState<"login" | "register">("login");
-  const [posts, setPosts] = useState(mockPosts);
+/* ────── API Helper ────── */
+const fetchPosts = async (): Promise<Post[]> => {
+  const response = await api.get<Post[]>("/posts/");
+  return response.data;
+};
 
-  // Handle authentication
-  const handleAuth = (userData: User) => {
-    setCurrentUser(userData);
-    setCurrentPage("feed");
-  };
+/* ───── useFetch Hook ───── */
+function useFetch<T>(fn: () => Promise<T>) {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
-  // Handle logout
-  const handleLogout = () => {
-    setCurrentUser(null);
-    setCurrentPage("login");
-  };
-
-  // Handle page navigation
-  const handlePageChange = (page: string) => {
-    if (page === "login" || page === "register") {
-      setAuthType(page as "login" | "register");
-      setCurrentPage(page);
-    } else {
-      setCurrentPage(page);
+  const run = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await fn();
+      setData(result);
+      setError(null);
+    } catch (err) {
+      setError(err as Error);
+    } finally {
+      setLoading(false);
     }
+  }, [fn]);
+
+  useEffect(() => {
+    run();
+  }, [run]);
+
+  return { data, loading, error, refetch: run };
+}
+
+/* ────────── Component ────────── */
+const Index = () => {
+  const { user } = useAuth();
+  const [page, setPage] = useState("feed");
+  const [authType, setAuthType] = useState<"login" | "register">("login");
+
+  const {
+    data: posts = [],
+    loading: postsLoading,
+    refetch: refetchPosts,
+  } = useFetch<Post[]>(fetchPosts);
+
+  const changePage = (p: string) => {
+    if (p === "login" || p === "register") setAuthType(p as "login" | "register");
+    setPage(p);
   };
 
-  // Handle creating new posts
-  const handleCreatePost = (content: string) => {
-    if (!currentUser) return;
-    
-    const newPost = {
-      id: Date.now().toString(),
-      author: {
-        name: currentUser.name,
-        title: currentUser.title,
-        avatar: currentUser.avatar
-      },
-      content,
-      timestamp: new Date().toISOString(),
-      likes: 0,
-      comments: 0,
-      isLiked: false
-    };
-    
-    setPosts(prev => [newPost, ...prev]);
-    setCurrentPage("feed");
-  };
-
-  // Handle post interactions
-  const handleLike = (postId: string) => {
-    setPosts(prev => prev.map(post => 
-      post.id === postId 
-        ? { 
-            ...post, 
-            isLiked: !post.isLiked,
-            likes: post.isLiked ? post.likes - 1 : post.likes + 1
-          }
-        : post
-    ));
-  };
-
-  // If not authenticated, show auth page
-  if (!currentUser) {
+  if (!user) {
     return (
       <div className="min-h-screen bg-background">
-        <Navigation 
-          currentPage={currentPage}
-          onPageChange={handlePageChange}
-        />
-        <AuthPage 
+        <Navigation currentPage={page} onPageChange={changePage} />
+        <AuthPage
           type={authType}
-          onAuth={handleAuth}
+          onAuth={() => setPage("feed")}
           onToggle={() => setAuthType(authType === "login" ? "register" : "login")}
         />
       </div>
     );
   }
 
-  // Render different pages based on current page
-  const renderContent = () => {
-    switch (currentPage) {
-      case "profile":
-        return (
-          <ProfilePage 
-            user={currentUser}
-            isOwnProfile={true}
+  let content: JSX.Element;
+  switch (page) {
+    case "profile":
+      content = <ProfilePage userId={user._id} />;
+      break;
+    case "create":
+      content = (
+        <div className="max-w-2xl mx-auto px-4 py-6">
+          <h1 className="text-2xl font-bold mb-6">Create a Post</h1>
+          <CreatePost
+            currentUser={{ name: user.name, avatar: user.avatar_url || "" }}
+            onSuccess={refetchPosts}
           />
-        );
-        
-      case "create":
-        return (
-          <div className="max-w-2xl mx-auto px-4 py-6">
-            <h1 className="text-2xl font-bold text-foreground mb-6">Create a Post</h1>
-            <CreatePost 
-              currentUser={currentUser}
-              onCreatePost={handleCreatePost}
+        </div>
+      );
+      break;
+    case "notifications":
+      content = (
+        <section className="max-w-2xl mx-auto px-4 py-6">
+          <h1 className="text-2xl font-bold mb-6">Notifications</h1>
+          <p className="text-center text-muted-foreground py-12">
+            No new notifications
+          </p>
+        </section>
+      );
+      break;
+    case "messages":
+      content = (
+        <section className="max-w-2xl mx-auto px-4 py-6">
+          <h1 className="text-2xl font-bold mb-6">Messages</h1>
+          <p className="text-center text-muted-foreground py-12">
+            No messages yet
+          </p>
+        </section>
+      );
+      break;
+    default:
+      content = (
+        <div className="max-w-2xl mx-auto px-4 py-6">
+          <div className="mb-6">
+            <CreatePost
+              currentUser={{ name: user.name, avatar: user.avatar_url || "" }}
+              onSuccess={refetchPosts}
             />
           </div>
-        );
-        
-      case "notifications":
-        return (
-          <div className="max-w-2xl mx-auto px-4 py-6">
-            <h1 className="text-2xl font-bold text-foreground mb-6">Notifications</h1>
-            <div className="text-center text-muted-foreground py-12">
-              <p>No new notifications</p>
-            </div>
-          </div>
-        );
-        
-      case "messages":
-        return (
-          <div className="max-w-2xl mx-auto px-4 py-6">
-            <h1 className="text-2xl font-bold text-foreground mb-6">Messages</h1>
-            <div className="text-center text-muted-foreground py-12">
-              <p>No messages yet</p>
-            </div>
-          </div>
-        );
-        
-      default: // feed
-        return (
-          <div className="max-w-2xl mx-auto px-4 py-6">
-            <div className="mb-6">
-              <CreatePost 
-                currentUser={currentUser}
-                onCreatePost={handleCreatePost}
-              />
-            </div>
-            
+          {postsLoading ? (
+            <p className="text-center py-12 text-muted-foreground">Loading…</p>
+          ) : (
             <div className="space-y-4">
-              {posts.map((post) => (
+              {posts.map((p) => (
                 <PostCard
-                  key={post.id}
-                  post={post}
-                  onLike={handleLike}
-                  onComment={(postId) => console.log("Comment on:", postId)}
-                  onShare={(postId) => console.log("Share:", postId)}
+                  key={p._id}
+                  post={{
+                    ...p,
+                    author: {
+                      ...p.author,
+                      title: p.author.title ?? "Member", // fallback for PostCard
+                    },
+                  }}
+                  onComment={() => console.log("comment", p._id)}
+                  onShare={() => console.log("share", p._id)}
                 />
               ))}
             </div>
-          </div>
-        );
-    }
-  };
+          )}
+        </div>
+      );
+  }
 
   return (
     <div className="min-h-screen bg-background">
-      <Navigation 
-        currentUser={currentUser}
-        currentPage={currentPage}
-        onPageChange={handlePageChange}
-      />
-      {renderContent()}
+      <Navigation currentPage={page} onPageChange={changePage} />
+      {content}
     </div>
   );
 };

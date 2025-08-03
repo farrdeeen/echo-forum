@@ -1,94 +1,61 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth";
+import api from "@/lib/api";
 import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Image, Video, Calendar, MoreHorizontal } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface CreatePostProps {
-  currentUser: {
-    name: string;
-    avatar?: string;
-  };
-  onCreatePost: (content: string) => void;
+  currentUser: { name: string; avatar: string }; // required for your use
+  onSuccess: () => Promise<void>;
 }
 
-export const CreatePost = ({ currentUser, onCreatePost }: CreatePostProps) => {
-  const [content, setContent] = useState("");
-  const [isExpanded, setIsExpanded] = useState(false);
+const CreatePost = ({ onSuccess }: CreatePostProps) => {
+  const { user } = useAuth();
+  const [text, setText] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = () => {
-    if (content.trim()) {
-      onCreatePost(content.trim());
-      setContent("");
-      setIsExpanded(false);
+  const handleSubmit = async () => {
+    if (!text.trim()) return;
+    setLoading(true);
+
+    try {
+      await api.post("/threads/", {
+        title: text,
+        description: "", // adjust as needed
+      });
+      setText("");
+      await onSuccess();
+    } catch (err) {
+      console.error("Failed to post thread:", err);
+    } finally {
+      setLoading(false);
     }
   };
 
+  if (!user) return null;
+
   return (
-    <Card className="gradient-card shadow-card border-card-border">
-      <div className="p-6">
-        <div className="flex space-x-3">
-          <Avatar className="w-12 h-12">
-            <AvatarImage src={currentUser.avatar} />
-            <AvatarFallback className="bg-primary text-primary-foreground">
-              {currentUser.name.split(' ').map(n => n[0]).join('')}
-            </AvatarFallback>
-          </Avatar>
-          
-          <div className="flex-1">
-            <Textarea
-              placeholder="Share your thoughts..."
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              onFocus={() => setIsExpanded(true)}
-              className="min-h-[60px] resize-none border-none shadow-none focus-visible:ring-0 text-base"
-              rows={isExpanded ? 4 : 2}
-            />
-            
-            {isExpanded && (
-              <div className="mt-4 space-y-4">
-                <div className="flex items-center space-x-4">
-                  <Button variant="ghost" size="sm" className="text-muted-foreground">
-                    <Image className="w-4 h-4 mr-2" />
-                    Photo
-                  </Button>
-                  <Button variant="ghost" size="sm" className="text-muted-foreground">
-                    <Video className="w-4 h-4 mr-2" />
-                    Video
-                  </Button>
-                  <Button variant="ghost" size="sm" className="text-muted-foreground">
-                    <Calendar className="w-4 h-4 mr-2" />
-                    Event
-                  </Button>
-                  <Button variant="ghost" size="sm" className="text-muted-foreground">
-                    <MoreHorizontal className="w-4 h-4" />
-                  </Button>
-                </div>
-                
-                <div className="flex justify-end space-x-2">
-                  <Button 
-                    variant="ghost" 
-                    onClick={() => {
-                      setIsExpanded(false);
-                      setContent("");
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button 
-                    onClick={handleSubmit} 
-                    disabled={!content.trim()}
-                    className="gradient-primary"
-                  >
-                    Post
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+    <div className="space-y-2 p-4 border rounded-lg bg-white">
+      <div className="flex gap-2 items-start">
+        <img
+          src={user.avatar_url || "/placeholder-avatar.png"}
+          alt="avatar"
+          className="w-8 h-8 rounded-full object-cover"
+        />
+        <Textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Start a new thread..."
+          className="flex-1 resize-none"
+        />
       </div>
-    </Card>
+      <div className="flex justify-end">
+        <Button onClick={handleSubmit} disabled={loading || !text.trim()}>
+          Post
+        </Button>
+      </div>
+    </div>
   );
 };
+
+export default CreatePost;

@@ -1,127 +1,99 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Heart, MessageCircle, Share, MoreHorizontal } from "lucide-react";
+import * as React from "react";
+import { Heart, MessageSquare, Share2 } from "lucide-react";
 
-interface Post {
-  id: string;
-  author: {
-    name: string;
-    title: string;
-    avatar?: string;
-  };
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+
+interface Author {
+  name: string;
+  title: string;
+  avatar_url?: string | null;
+}
+
+export interface Post {
+  _id: string;
   content: string;
-  timestamp: string;
+  created_at: string;
   likes: number;
   comments: number;
   isLiked?: boolean;
+  author: Author;
 }
 
 interface PostCardProps {
   post: Post;
-  onLike?: (postId: string) => void;
-  onComment?: (postId: string) => void;
-  onShare?: (postId: string) => void;
+  onComment: () => void;
+  onShare: () => void;
 }
 
-export const PostCard = ({ post, onLike, onComment, onShare }: PostCardProps) => {
-  const formatTime = (timestamp: string) => {
-    const now = new Date();
-    const postTime = new Date(timestamp);
-    const diffInHours = Math.floor((now.getTime() - postTime.getTime()) / (1000 * 60 * 60));
-    
-    if (diffInHours < 1) return "Just now";
-    if (diffInHours < 24) return `${diffInHours}h`;
-    if (diffInHours < 168) return `${Math.floor(diffInHours / 24)}d`;
-    return `${Math.floor(diffInHours / 168)}w`;
+export const PostCard: React.FC<PostCardProps> = ({
+  post,
+  onComment,
+  onShare,
+}) => {
+  const [liked, setLiked] = React.useState(post.isLiked ?? false);
+  const [likeCount, setLikeCount] = React.useState(post.likes);
+
+  const toggleLike = () => {
+    setLiked(!liked);
+    setLikeCount((prev) => prev + (liked ? -1 : 1));
+    // You can call your backend like endpoint here if needed
   };
 
   return (
-    <Card className="gradient-card shadow-card hover:shadow-elevated transition-all duration-200 border-card-border">
-      <div className="p-6">
-        {/* Post Header */}
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center space-x-3">
-            <Avatar className="w-12 h-12">
-              <AvatarImage src={post.author.avatar} />
-              <AvatarFallback className="bg-primary text-primary-foreground">
-                {post.author.name.split(' ').map(n => n[0]).join('')}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <h3 className="font-semibold text-card-foreground hover:text-primary cursor-pointer">
-                {post.author.name}
-              </h3>
-              <p className="text-sm text-muted-foreground">{post.author.title}</p>
-              <p className="text-xs text-muted-foreground">{formatTime(post.timestamp)}</p>
-            </div>
+    <Card>
+      <CardContent className="p-4 space-y-2">
+        <div className="flex items-center gap-3">
+          <Avatar>
+            {post.author.avatar_url ? (
+              <AvatarImage src={post.author.avatar_url} />
+            ) : (
+              <AvatarFallback>{post.author.name[0]}</AvatarFallback>
+            )}
+          </Avatar>
+          <div className="text-sm leading-tight">
+            <p className="font-medium">{post.author.name}</p>
+            <p className="text-muted-foreground text-xs">
+              {post.created_at.slice(0, 10)} {/* ISO → YYYY-MM-DD */}
+            </p>
           </div>
-          <Button variant="ghost" size="sm" className="text-muted-foreground">
-            <MoreHorizontal className="w-4 h-4" />
-          </Button>
         </div>
 
-        {/* Post Content */}
-        <div className="mb-4">
-          <p className="text-card-foreground leading-relaxed whitespace-pre-wrap">
-            {post.content}
-          </p>
-        </div>
+        <p className="text-sm text-foreground">{post.content}</p>
 
-        {/* Engagement Stats */}
-        {(post.likes > 0 || post.comments > 0) && (
-          <div className="flex items-center justify-between mb-3 pt-3 border-t border-border">
-            <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-              {post.likes > 0 && (
-                <span className="flex items-center space-x-1">
-                  <div className="w-4 h-4 bg-primary rounded-full flex items-center justify-center">
-                    <Heart className="w-2.5 h-2.5 text-white fill-white" />
-                  </div>
-                  <span>{post.likes}</span>
-                </span>
-              )}
-              {post.comments > 0 && (
-                <span>{post.comments} comments</span>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Action Buttons */}
-        <div className="flex items-center justify-between pt-3 border-t border-border">
+        <div className="flex gap-4 pt-2">
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => onLike?.(post.id)}
-            className={`flex items-center space-x-2 hover:bg-secondary ${
-              post.isLiked ? "text-primary" : "text-muted-foreground"
-            }`}
+            onClick={toggleLike}
+            className="flex items-center gap-1 text-sm"
           >
-            <Heart className={`w-4 h-4 ${post.isLiked ? "fill-primary" : ""}`} />
-            <span>Like</span>
+            <Heart
+              className={`h-4 w-4 ${liked ? "fill-red-500 text-red-500" : ""}`}
+            />
+            {likeCount}
           </Button>
-          
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => onComment?.(post.id)}
-            className="flex items-center space-x-2 text-muted-foreground hover:bg-secondary"
+            onClick={onComment}
+            className="flex items-center gap-1 text-sm"
           >
-            <MessageCircle className="w-4 h-4" />
-            <span>Comment</span>
+            <MessageSquare className="h-4 w-4" />
+            {post.comments}
           </Button>
-          
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => onShare?.(post.id)}
-            className="flex items-center space-x-2 text-muted-foreground hover:bg-secondary"
+            onClick={onShare}
+            className="flex items-center gap-1 text-sm"
           >
-            <Share className="w-4 h-4" />
-            <span>Share</span>
+            <Share2 className="h-4 w-4" />
+            Share
           </Button>
         </div>
-      </div>
+      </CardContent>
     </Card>
   );
 };
