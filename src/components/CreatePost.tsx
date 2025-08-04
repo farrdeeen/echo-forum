@@ -3,9 +3,9 @@ import { useAuth } from "@/lib/auth";
 import api from "@/lib/api";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import avatarImg from "@/assets/avatar.jpg";  // <<--- the custom avatar import
 
 interface CreatePostProps {
-  // Remove currentUser if not needed! You can get user from useAuth()
   onSuccess: () => Promise<void>;
 }
 
@@ -17,11 +17,8 @@ const CreatePost = ({ onSuccess }: CreatePostProps) => {
   const handleSubmit = async () => {
     if (!text.trim()) return;
     setLoading(true);
-
     try {
-      await api.post("/posts/", {
-        content: text, // <-- Correct key for backend
-      });
+      await api.post("/posts/", { content: text });
       setText("");
       await onSuccess();
     } catch (err) {
@@ -37,7 +34,7 @@ const CreatePost = ({ onSuccess }: CreatePostProps) => {
     <div className="space-y-2 p-4 border rounded-lg bg-white">
       <div className="flex gap-2 items-start">
         <img
-          src={user.avatar_url || "/placeholder-avatar.png"}
+          src={user.avatar_url || avatarImg}   // <-- fallback to asset avatar
           alt="avatar"
           className="w-8 h-8 rounded-full object-cover"
         />

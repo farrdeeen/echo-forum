@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import dpImg from "@/assets/dp.jpg"; // <-- Your default profile image asset
 import {
   Avatar,
   AvatarFallback,
@@ -12,6 +13,8 @@ import { PostCard } from "@/components/PostCard";
 import { getTyped } from "@/lib/request";
 import { useFetch } from "@/hooks/useFetch";
 import { useAuth } from "@/lib/auth";
+import api from "@/lib/api";
+import { useNavigate } from "react-router-dom"; // <-- for navigation
 
 interface User {
   _id: string;
@@ -21,6 +24,12 @@ interface User {
   bio?: string;
   avatar_url?: string | null;
 }
+interface Author {
+  name: string;
+  _id?: string;
+  title?: string;
+  avatar_url?: string | null;
+}
 interface Post {
   _id: string;
   content: string;
@@ -28,7 +37,7 @@ interface Post {
   likes: number;
   comments: number;
   isLiked?: boolean;
-  author?: { name?: string; title?: string; avatar_url?: string | null };
+  author: Author;
 }
 
 interface ProfilePageProps {
@@ -42,15 +51,11 @@ export const ProfilePage = ({
   onConnect,
   onMessage,
 }: ProfilePageProps) => {
-  // Defensive guard
-  if (!userId) {
-    return <div className="p-8">Invalid or missing user ID.</div>;
-  }
+  if (!userId) return <div className="p-8">Invalid or missing user ID.</div>;
 
   const { user: me } = useAuth();
-  const isOwn = me?._id === userId;
+  const navigate = useNavigate();
 
-  // 🟢 Memoize fetch functions and specify types for getTyped<T>
   const getProfile = useCallback(() => getTyped<User>(`/users/${userId}`), [userId]);
   const getPosts = useCallback(() => getTyped<Post[]>(`/users/${userId}/posts/`), [userId]);
 
@@ -64,6 +69,7 @@ export const ProfilePage = ({
     data: posts = [],
     loading: postsLoading,
     error: postsError,
+    refetch: refetchPosts,
   } = useFetch<Post[]>(getPosts);
 
   if (profileLoading || postsLoading) return <p className="p-8">Loading…</p>;
@@ -77,15 +83,15 @@ export const ProfilePage = ({
         <div className="p-6 flex flex-col md:flex-row md:space-x-6">
           <div className="flex flex-col items-center md:items-start">
             <Avatar className="w-32 h-32 mb-4">
-              <AvatarImage src={profile.avatar_url ?? undefined} />
+              {/* Use custom dp image as fallback if no avatar_url */}
+              <AvatarImage src={profile.avatar_url ?? dpImg} />
               <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
                 {profile.name
                   ? profile.name.split(" ").map(n => n[0]).join("")
                   : "?"}
               </AvatarFallback>
             </Avatar>
-
-            {!isOwn && (
+            {!me || me._id !== userId ? (
               <div className="flex space-x-2">
                 <Button onClick={onConnect} className="gradient-primary">
                   Connect
@@ -95,7 +101,7 @@ export const ProfilePage = ({
                   Message
                 </Button>
               </div>
-            )}
+            ) : null}
           </div>
 
           <div className="flex-1 mt-4 md:mt-0">
@@ -116,16 +122,14 @@ export const ProfilePage = ({
                   </span>
                 </div>
               </div>
-              {isOwn && (
+              {me && me._id === userId ? (
                 <Button variant="outline" size="sm">
                   <Edit className="w-4 h-4 mr-2" />
                   Edit Profile
                 </Button>
-              )}
+              ) : null}
             </div>
-
             <p className="leading-relaxed mb-4">{profile.bio || "No bio provided."}</p>
-
             <div className="flex flex-wrap gap-2">
               <Badge variant="secondary">Product Management</Badge>
               <Badge variant="secondary">User Experience</Badge>
@@ -160,7 +164,9 @@ export const ProfilePage = ({
 
       {/* posts */}
       <h2 className="text-xl font-semibold mb-4">
-        {isOwn ? "Your Posts" : `Posts by ${profile.name?.split(" ")[0] || "User"}`}
+        {me && me._id === userId
+          ? "Your Posts"
+          : `Posts by ${profile.name?.split(" ")[0] || "User"}`}
       </h2>
 
       <div className="space-y-4">
@@ -168,27 +174,30 @@ export const ProfilePage = ({
           posts.map(p => (
             <PostCard
               key={p._id}
-              post={{
-                ...p,
-                author: {
-                  name: p.author?.name || "Unknown",
-                  title: p.author?.title || "Member",
-                  avatar_url: p.author?.avatar_url ?? null,
-                },
-              }}
+              post={p}
               onComment={() => console.log("comment", p._id)}
               onShare={() => console.log("share", p._id)}
+              onDelete={async () => {
+                await api.delete(`/posts/${p._id}/`);
+                refetchPosts?.();
+              }}
+              onAuthorClick={() => {
+                // Only navigate if an author ID exists and isn't the current profile
+                if (p.author && p.author._id && p.author._id !== userId) {
+                  navigate(`/profile/${p.author._id}`);
+                }
+              }}
             />
           ))
         ) : (
           <Card className="gradient-card shadow-card border-card-border">
             <div className="p-8 text-center">
               <p className="text-muted-foreground">
-                {isOwn
+                {me && me._id === userId
                   ? "You haven’t posted anything yet."
                   : "No posts to show."}
               </p>
-              {isOwn && (
+              {me && me._id === userId && (
                 <Button className="mt-4 gradient-primary">
                   Create Your First Post
                 </Button>

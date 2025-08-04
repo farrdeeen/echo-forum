@@ -6,8 +6,8 @@ const Header = () => {
   const { user, logout } = useAuth();
 
   return (
-    <header className="flex items-center justify-between p-4 border-b">
-      <Link to="/" className="text-lg font-bold">
+    <header className="flex items-center justify-between p-4 bg-blue-600 text-white border-b border-blue-700 shadow">
+      <Link to="/" className="text-lg font-bold text-white hover:text-blue-100 transition">
         ThreadSpace
       </Link>
       <nav className="flex items-center gap-4">
@@ -18,20 +18,29 @@ const Header = () => {
                 <img
                   src={user.avatar_url}
                   alt={user.name}
-                  className="w-6 h-6 rounded-full object-cover"
+                  className="w-7 h-7 rounded-full object-cover border-2 border-blue-200"
                 />
               )}
-              <span className="text-sm text-muted-foreground">
-                {user.name || user.email}
-              </span>
+              <span className="text-sm">{user.name || user.email}</span>
             </div>
-            <Button onClick={logout} variant="outline" size="sm">
+            <Button
+              onClick={logout}
+              variant="ghost"
+              size="sm"
+              className="border border-white/40 hover:bg-blue-700 text-white"
+            >
               Logout
             </Button>
           </>
         ) : (
           <Link to="/auth">
-            <Button size="sm">Login</Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="border border-white/40 hover:bg-blue-700 text-white"
+            >
+              Login
+            </Button>
           </Link>
         )}
       </nav>

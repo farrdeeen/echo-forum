@@ -14,6 +14,7 @@ interface User {
 }
 interface Author {
   name: string;
+  _id?: string;
   title?: string;
   avatar_url?: string | null;
 }
@@ -63,6 +64,8 @@ const Index = () => {
   const { user, loading } = useAuth();
   const [page, setPage] = useState("feed");
   const [authType, setAuthType] = useState<"login" | "register">("login");
+  // NEW: Track the current "selected" profile userId (default to your own)
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
 
   const {
     data: posts = [],
@@ -74,9 +77,13 @@ const Index = () => {
   // Debug logs for main states
   console.log("[Index] user:", user, "| loading:", loading, "| page:", page);
 
-  const changePage = (p: string) => {
-    console.log("[Index] changePage called with:", p);
+  // When navigating to the profile, set the profileUserId
+  const changePage = (p: string, id?: string) => {
+    console.log("[Index] changePage called with:", p, id);
     if (p === "login" || p === "register") setAuthType(p as "login" | "register");
+    if (p === "profile" && id) {
+      setProfileUserId(id);
+    }
     setPage(p);
   };
 
@@ -109,10 +116,12 @@ const Index = () => {
   let content: JSX.Element;
   switch (page) {
     case "profile":
-      console.log("[Index] Rendering profile page for user._id:", user._id);
+      // Always use profileUserId for ProfilePage (your own if none selected yet)
+      const showUserId = profileUserId || user._id;
+      console.log("[Index] Rendering profile page for user._id:", showUserId);
       content =
-        user && user._id
-          ? <ProfilePage userId={user._id} />
+        showUserId
+          ? <ProfilePage userId={showUserId} />
           : <p className="p-8">Loading user…</p>;
       break;
     case "create":
@@ -160,13 +169,18 @@ const Index = () => {
                   post={{
                     ...p,
                     author: {
-                      name: p.author?.name || "Unknown",
-                      title: p.author?.title || "Member",
-                      avatar_url: p.author?.avatar_url || null,
+                      ...p.author,
+                      _id: (p.author as any)?._id || (p as any).author_id || "", // ensure author id!
                     },
                   }}
                   onComment={() => console.log("comment", p._id)}
                   onShare={() => console.log("share", p._id)}
+                  onAuthorClick={() => {
+                    // Go to profile page for this user's id
+                    if (p.author && p.author._id) {
+                      changePage("profile", p.author._id);
+                    }
+                  }}
                 />
               ))}
             </div>
